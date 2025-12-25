@@ -1,16 +1,6 @@
 ---
-name: Data Designer
-description: Generate high-quality synthetic datasets using statistical samplers and Claude's native LLM capabilities
-version: 1.0.0
-triggers:
-  - synthetic data
-  - generate dataset
-  - create dataset
-  - data generation
-  - fake data
-  - mock data
-  - test data
-  - training data
+name: data-designer
+description: Generate high-quality synthetic datasets using statistical samplers and Claude's native LLM capabilities. Use when users ask to create synthetic data, generate datasets, create fake/mock data, generate test data, training data, or any data generation task. Adapted from NVIDIA NeMo DataDesigner.
 ---
 
 # Data Designer Skill
