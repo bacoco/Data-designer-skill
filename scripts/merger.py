@@ -193,8 +193,8 @@ def main():
             existing_rows = load_dataset(output_path)
             print(f"Found existing output with {len(existing_rows)} rows, appending new rows")
             rows = existing_rows + rows
-        except Exception as e:
-            print(f"Warning: Could not load existing output ({e}); proceeding with new rows only")
+        except (ValueError, ImportError, json.JSONDecodeError, OSError) as e:
+            print(f"Warning: Could not load existing output ({e}); proceeding with new rows only", file=sys.stderr)
 
     # Clean rows
     rows = clean_rows(rows, drop_columns=args.drop)
