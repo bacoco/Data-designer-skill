@@ -1,0 +1,89 @@
+{
+  "name": "product_reviews",
+  "description": "Customer reviews for e-commerce products",
+  "seed": 42,
+  "columns": [
+    {
+      "name": "review_id",
+      "type": "uuid",
+      "params": {
+        "prefix": "REV-"
+      }
+    },
+    {
+      "name": "product_category",
+      "type": "category",
+      "params": {
+        "values": ["Electronics", "Clothing", "Books", "Home & Kitchen", "Sports"],
+        "weights": [0.30, 0.25, 0.20, 0.15, 0.10]
+      }
+    },
+    {
+      "name": "product_subcategory",
+      "type": "subcategory",
+      "params": {
+        "category": "product_category",
+        "mapping": {
+          "Electronics": ["Smartphones", "Laptops", "Headphones", "Tablets"],
+          "Clothing": ["T-Shirts", "Jeans", "Dresses", "Jackets"],
+          "Books": ["Fiction", "Non-Fiction", "Technical", "Biography"],
+          "Home & Kitchen": ["Appliances", "Cookware", "Furniture", "Decor"],
+          "Sports": ["Fitness", "Outdoor", "Team Sports", "Water Sports"]
+        }
+      }
+    },
+    {
+      "name": "rating",
+      "type": "uniform",
+      "params": {
+        "low": 1,
+        "high": 5,
+        "dtype": "int"
+      }
+    },
+    {
+      "name": "customer",
+      "type": "person",
+      "params": {
+        "fields": ["first_name", "last_name", "age", "city", "email"],
+        "age_range": [18, 65],
+        "locale": "en_US"
+      }
+    },
+    {
+      "name": "purchase_date",
+      "type": "datetime",
+      "params": {
+        "start": "2024-01-01",
+        "end": "2024-12-31",
+        "format": "%Y-%m-%d"
+      }
+    },
+    {
+      "name": "verified_purchase",
+      "type": "bernoulli",
+      "params": {
+        "p": 0.85,
+        "true_value": true,
+        "false_value": false
+      }
+    },
+    {
+      "name": "product_name",
+      "type": "llm_text",
+      "prompt": "Generate a realistic product name for the {{ product_subcategory }} subcategory in {{ product_category }}. Return only the product name, nothing else.",
+      "depends_on": ["product_category", "product_subcategory"]
+    },
+    {
+      "name": "review_text",
+      "type": "llm_text",
+      "prompt": "Write a {{ rating }}-star customer review for \"{{ product_name }}\" (a {{ product_subcategory }} product) by {{ customer.first_name }} from {{ customer.city }}.\n\nThe review should:\n- Be 2-4 sentences\n- Match the {{ rating }}-star rating sentiment (1-2 = negative, 3 = neutral, 4-5 = positive)\n- Sound authentic and specific\n- Mention at least one specific feature or experience\n\nReturn only the review text.",
+      "depends_on": ["rating", "product_name", "product_subcategory", "customer"]
+    }
+  ],
+  "output": {
+    "format": "csv",
+    "filename": "product_reviews",
+    "directory": "/mnt/user-data/outputs"
+  }
+}

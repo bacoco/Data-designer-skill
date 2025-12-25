@@ -1,0 +1,141 @@
+name: customer_support_tickets
+description: Customer support ticket dataset for training and testing
+
+seed: 456
+
+columns:
+  - name: ticket_id
+    type: uuid
+    params:
+      prefix: "TKT-"
+
+  - name: created_at
+    type: datetime
+    params:
+      start: "2024-01-01"
+      end: "2024-12-31"
+      format: "%Y-%m-%d %H:%M:%S"
+
+  - name: customer
+    type: person
+    params:
+      fields:
+        - first_name
+        - last_name
+        - email
+        - company
+      age_range: [25, 55]
+
+  - name: category
+    type: category
+    params:
+      values:
+        - billing
+        - technical
+        - account
+        - shipping
+        - general
+      weights:
+        - 0.25
+        - 0.30
+        - 0.15
+        - 0.20
+        - 0.10
+
+  - name: priority
+    type: gaussian
+    params:
+      mean: 3
+      std: 1
+      min_val: 1
+      max_val: 5
+      dtype: int
+
+  - name: response_time_hours
+    type: gaussian
+    params:
+      mean: 4
+      std: 2
+      min_val: 0.5
+      max_val: 24
+      decimals: 1
+
+  - name: is_resolved
+    type: bernoulli
+    params:
+      p: 0.75
+
+  - name: ticket_subject
+    type: llm_text
+    prompt: |
+      Generate a realistic customer support ticket subject line for a {{ category }} issue.
+      Priority level: {{ priority }}/5
+      Customer: {{ customer.first_name }} {{ customer.last_name }} from {{ customer.company }}
+
+      Return only the subject line (50 characters max).
+    depends_on:
+      - category
+      - priority
+      - customer
+
+  - name: ticket_description
+    type: llm_text
+    prompt: |
+      Write a customer support ticket description.
+
+      Subject: {{ ticket_subject }}
+      Category: {{ category }}
+      Customer: {{ customer.first_name }} {{ customer.last_name }}
+      Company: {{ customer.company }}
+      Email: {{ customer.email }}
+      Priority: {{ priority }}/5
+
+      Requirements:
+      - 2-4 sentences describing the issue
+      - Include specific details relevant to the category
+      - Match the urgency to the priority level
+      - Sound like a real customer message
+
+      Return only the description text.
+    depends_on:
+      - ticket_subject
+      - category
+      - customer
+      - priority
+
+  - name: resolution_notes
+    type: llm_text
+    prompt: |
+      {% if is_resolved %}
+      Write brief resolution notes for this support ticket:
+
+      Subject: {{ ticket_subject }}
+      Category: {{ category }}
+      Description: {{ ticket_description }}
+
+      Requirements:
+      - 1-2 sentences explaining how the issue was resolved
+      - Be professional and concise
+      - Reference specific actions taken
+      {% else %}
+      Write a brief status note for this unresolved ticket:
+
+      Subject: {{ ticket_subject }}
+      Category: {{ category }}
+
+      Requirements:
+      - 1 sentence explaining current status
+      - Indicate next steps if applicable
+      {% endif %}
+
+      Return only the notes text.
+    depends_on:
+      - is_resolved
+      - ticket_subject
+      - category
+      - ticket_description
+
+output:
+  format: csv
+  filename: support_tickets
+  directory: /mnt/user-data/outputs

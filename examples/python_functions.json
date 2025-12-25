@@ -1,0 +1,72 @@
+{
+  "name": "python_functions",
+  "description": "Python function examples for code generation training",
+  "seed": 789,
+  "columns": [
+    {
+      "name": "function_id",
+      "type": "uuid",
+      "params": {}
+    },
+    {
+      "name": "difficulty",
+      "type": "category",
+      "params": {
+        "values": ["beginner", "intermediate", "advanced"],
+        "weights": [0.4, 0.4, 0.2]
+      }
+    },
+    {
+      "name": "category",
+      "type": "category",
+      "params": {
+        "values": [
+          "string_manipulation",
+          "list_operations",
+          "math_calculations",
+          "file_handling",
+          "data_processing",
+          "algorithms"
+        ],
+        "weights": [0.2, 0.2, 0.15, 0.15, 0.15, 0.15]
+      }
+    },
+    {
+      "name": "function_description",
+      "type": "llm_text",
+      "prompt": "Generate a natural language description for a {{ difficulty }}-level Python function in the {{ category }} category.\n\nRequirements:\n- 1-2 sentences describing what the function should do\n- Include expected input types and return type\n- Be specific and clear\n- Appropriate complexity for {{ difficulty }} level\n\nExamples:\n- \"Write a function that takes a list of integers and returns the sum of all even numbers.\"\n- \"Create a function that reads a CSV file and returns a dictionary mapping column names to their values.\"\n\nReturn only the description.",
+      "depends_on": ["difficulty", "category"]
+    },
+    {
+      "name": "function_code",
+      "type": "llm_code",
+      "code_lang": "python",
+      "prompt": "Write a Python function based on this description:\n\n{{ function_description }}\n\nRequirements:\n- Include a docstring\n- Use type hints\n- Handle edge cases appropriately\n- Follow PEP 8 style\n- Difficulty level: {{ difficulty }}\n\nReturn only the Python code (no markdown, no explanation).",
+      "depends_on": ["function_description", "difficulty"],
+      "validators": [
+        {
+          "type": "python",
+          "params": {}
+        }
+      ]
+    },
+    {
+      "name": "test_code",
+      "type": "llm_code",
+      "code_lang": "python",
+      "prompt": "Write pytest test cases for this Python function:\n\n```python\n{{ function_code }}\n```\n\nDescription: {{ function_description }}\n\nRequirements:\n- Write 2-3 test functions\n- Include edge cases\n- Use descriptive test names\n- Use assert statements\n\nReturn only the Python test code (no markdown).",
+      "depends_on": ["function_code", "function_description"],
+      "validators": [
+        {
+          "type": "python",
+          "params": {}
+        }
+      ]
+    }
+  ],
+  "output": {
+    "format": "jsonl",
+    "filename": "python_functions",
+    "directory": "/mnt/user-data/outputs"
+  }
+}
