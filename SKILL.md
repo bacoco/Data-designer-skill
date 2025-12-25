@@ -1,197 +1,124 @@
 ---
 name: data-designer
-description: Generate high-quality synthetic datasets using statistical samplers and Claude's native LLM capabilities. Use when users ask to create synthetic data, generate datasets, create fake/mock data, generate test data, training data, or any data generation task. Adapted from NVIDIA NeMo DataDesigner.
+description: Generate high-quality synthetic datasets using statistical samplers and Claude's native LLM capabilities. Use when users ask to create synthetic data, generate datasets, create fake/mock data, generate test data, training data, or any data generation task. Supports CSV, JSON, JSONL, Parquet output. Adapted from NVIDIA NeMo DataDesigner (Apache 2.0).
 ---
 
-# Data Designer Skill
+# Data Designer
 
-Generate synthetic datasets by combining statistical samplers with Claude's LLM capabilities. No external API keys required.
+Generate synthetic datasets combining statistical samplers with Claude's LLM capabilities. No external API keys required.
 
-## Capabilities
+## Workflow
 
-### Statistical Samplers (No LLM Required)
-- **category** - Sample from weighted categorical values
-- **subcategory** - Hierarchical sampling based on parent category
-- **uniform** - Uniform distribution (int or float)
-- **gaussian** - Normal distribution with mean/std
-- **bernoulli** - Binary with probability
-- **poisson** - Poisson distribution
-- **datetime** - Random dates in range
-- **person** - Synthetic personas (name, age, email, city, etc.)
-- **uuid** - Unique identifiers
+1. **Clarify requirements** - Ask about purpose, columns, size, format
+2. **Create schema** - Write `dataset_schema.json` defining columns
+3. **Generate preview** - Run `batch_generator.py` for 3-5 rows
+4. **Iterate** - Refine based on feedback
+5. **Generate full dataset** - Batch generate, then merge
+6. **Deliver** - Export to requested format
 
-### LLM-Generated Columns (Claude Native)
-- **llm_text** - Free-form text generation
-- **llm_code** - Code with syntax validation
-- **llm_structured** - JSON matching schema
-- **llm_judge** - Quality scoring of other columns
+## Column Types
 
-### Jinja2 Templating
-Reference other columns in prompts:
+### Statistical Samplers (No LLM)
+
+| Type | Description | Key Params |
+|------|-------------|------------|
+| `category` | Weighted random choice | `values`, `weights` |
+| `subcategory` | Hierarchical (parent-based) | `mapping`, `category` |
+| `uniform` | Uniform distribution | `low`, `high`, `dtype` |
+| `gaussian` | Normal distribution | `mean`, `std`, `min_val`, `max_val` |
+| `bernoulli` | Binary probability | `p`, `true_value`, `false_value` |
+| `poisson` | Poisson distribution | `mean` |
+| `datetime` | Random dates | `start`, `end`, `format` |
+| `person` | Synthetic personas | `fields`, `age_range`, `locale` |
+| `uuid` | Unique IDs | `prefix`, `format` |
+
+### LLM Columns (Claude generates)
+
+| Type | Description |
+|------|-------------|
+| `llm_text` | Free-form text |
+| `llm_code` | Code with syntax validation |
+| `llm_structured` | JSON matching schema |
+| `llm_judge` | Quality scoring |
+
+## Schema Format
+
+Create `dataset_schema.json`:
+
+```json
+{
+  "name": "dataset_name",
+  "seed": 42,
+  "columns": [
+    {"name": "category", "type": "category", "params": {"values": ["A","B"], "weights": [0.6,0.4]}},
+    {"name": "text", "type": "llm_text", "prompt": "Write about {{ category }}.", "depends_on": ["category"]}
+  ],
+  "output": {"format": "csv", "filename": "output"}
+}
+```
+
+For full schema reference: [references/schema.md](references/schema.md)
+
+## Jinja2 Templating
+
+Reference columns in prompts:
+
 ```
 Write a {{ rating }}-star review for {{ product_name }} by {{ customer.first_name }}.
 ```
 
-### Validators
-- **regex** - Pattern matching
-- **length** - Min/max character count
-- **python** - Python syntax validation (AST + ruff)
-- **json_schema** - JSON schema validation
+Supports: `{{ var }}`, `{{ obj.field }}`, `{% if %}`, filters
 
-## Workflow Protocol
+## Scripts
 
-When the user requests synthetic data generation, follow this protocol:
-
-### Step 1: Clarify Requirements
-Ask about:
-- Dataset purpose (training, testing, demos)
-- Number of records needed
-- Column names and types
-- Any specific distributions or constraints
-- Output format (CSV, JSON, JSONL, Parquet)
-
-### Step 2: Generate Schema
-Create a `dataset_schema.json` file defining all columns:
-
-```json
-{
-  "name": "product_reviews",
-  "description": "Customer reviews for e-commerce",
-  "seed": 42,
-  "columns": [
-    {
-      "name": "product_category",
-      "type": "category",
-      "params": {
-        "values": ["Electronics", "Clothing", "Books"],
-        "weights": [0.4, 0.35, 0.25]
-      }
-    },
-    {
-      "name": "rating",
-      "type": "uniform",
-      "params": { "low": 1, "high": 5, "dtype": "int" }
-    },
-    {
-      "name": "customer",
-      "type": "person",
-      "params": {
-        "fields": ["first_name", "last_name", "age", "city", "email"],
-        "age_range": [18, 65]
-      }
-    },
-    {
-      "name": "review_text",
-      "type": "llm_text",
-      "prompt": "Write a {{ rating }}-star review for a {{ product_category }} product by {{ customer.first_name }} from {{ customer.city }}. 2-3 sentences.",
-      "depends_on": ["rating", "product_category", "customer"]
-    }
-  ],
-  "output": {
-    "format": "csv",
-    "filename": "product_reviews"
-  }
-}
-```
-
-### Step 3: Generate Preview Batch
-Run the batch generator for a small preview (3-5 rows):
+### Generate Data
 
 ```bash
-python scripts/batch_generator.py --schema dataset_schema.json --rows 5 --output preview.json
+# Preview
+python scripts/batch_generator.py --schema schema.json --rows 5 --output preview.json --preview
+
+# Full generation
+python scripts/batch_generator.py --schema schema.json --rows 100 --batch-size 20 --output batches/
 ```
 
-Show the preview to the user and ask for feedback.
-
-### Step 4: Iterate on Schema
-If the user requests changes:
-1. Update the schema file
-2. Regenerate preview
-3. Repeat until user approves
-
-### Step 5: Generate Full Dataset
-Once approved, generate in batches:
+### Merge & Export
 
 ```bash
-# Generate batches
-python scripts/batch_generator.py --schema dataset_schema.json --rows 100 --batch-size 20 --output batches/
-
-# Merge batches
-python scripts/merger.py --input batches/ --output final_dataset.csv
+python scripts/merger.py --input batches/ --output dataset.csv --flatten
 ```
 
-### Step 6: Validate (Optional)
-Run validators if configured:
+Formats: `csv`, `json`, `jsonl`, `parquet`
 
-```bash
-python scripts/validator.py --input final_dataset.csv --schema dataset_schema.json
-```
+## Generation Strategy
 
-### Step 7: Deliver
-- Save to `/mnt/user-data/outputs/` for download
-- Show summary statistics
-- Offer to generate more or modify
+1. **Sampler columns first** - Python scripts, fast
+2. **LLM columns in dependency order** - Topological sort by `depends_on`
+3. **Batch processing** - Generate in batches of 20-50 for large datasets
 
-## Column Dependencies
+For LLM columns, Claude generates directly:
+- Render Jinja2 prompt with row data
+- Generate content
+- Validate if configured
+- Retry on failure (max 3)
 
-Columns are generated in dependency order (topological sort):
-1. Sampler columns first (no dependencies)
-2. LLM columns in order of their `depends_on` fields
-3. Expression/validation columns last
-
-## LLM Generation Strategy
-
-For LLM columns, Claude generates content directly in the conversation:
-1. Render the Jinja2 prompt with row data
-2. Generate the content
-3. Validate if validators configured
-4. Retry on validation failure (max 3 attempts)
-
-For large datasets (>50 rows), generate in batches to manage context.
-
-## File Locations
-
-- Schema: `dataset_schema.json`
-- Batches: `batches/batch_001.json`, `batch_002.json`, ...
-- Output: `/mnt/user-data/outputs/{filename}.{format}`
-
-## Example Requests
+## Examples
 
 **Simple:**
 > "Generate 50 product reviews with ratings 1-5"
 
 **Complex:**
-> "Create a dataset of 200 customer support tickets with:
-> - Ticket ID (UUID)
-> - Customer name and email
-> - Category (billing, technical, general)
-> - Priority (1-5, gaussian around 3)
-> - Description (LLM generated based on category)
-> - Resolution (LLM generated if priority > 3)"
+> "Create 200 support tickets with: ticket_id (UUID), customer (name, email), category (billing/technical/general), priority (1-5 gaussian), description (LLM)"
 
-**Code Training:**
-> "Generate 100 Python function examples with:
-> - Function description
-> - Python code (validated)
-> - Test cases"
+**Code:**
+> "Generate 100 Python functions with description, code (validated), tests"
 
 ## Tips
 
-- Use `seed` in schema for reproducibility
-- Preview first, then scale up
-- For correlated columns, use subcategory or expression types
-- Validate code columns with python validator
-- Keep LLM prompts specific and concise for better quality
+- Use `seed` for reproducibility
+- Preview first, then scale
+- Keep LLM prompts specific
+- Use `subcategory` for correlated data
 
 ## Attribution
 
-This skill is adapted from [NVIDIA NeMo DataDesigner](https://github.com/NVIDIA-NeMo/DataDesigner) (Apache 2.0 License).
-
-Key concepts borrowed:
-- Sampler registry pattern with scipy.stats distributions
-- DAG-based column dependency resolution
-- Jinja2 templating for prompts
-- Python/ruff validation approach
-- Column configuration schema design
-
-Adapted for Claude Code's skill architecture with file-based orchestration instead of external API calls.
+Adapted from [NVIDIA NeMo DataDesigner](https://github.com/NVIDIA-NeMo/DataDesigner) (Apache 2.0).
