@@ -2,8 +2,12 @@
 """
 Merge batch files into final dataset.
 
+Supports merging batches from multiple agents/directories and appending to an
+existing output file so repeated runs accumulate data rather than overwrite it.
+
 Usage:
     python merger.py --input batches/ --output final_dataset.csv
+    python merger.py --input batches_a/ batches_b/ --output final_dataset.json
     python merger.py --input batches/ --output final_dataset.json --format json
 """
 
@@ -11,12 +15,12 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterable
 
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent))
 
-from exporters import export_dataset
+from exporters import export_dataset, load_dataset
 
 
 def load_batch(path: Path) -> list[dict[str, Any]]:
@@ -48,6 +52,33 @@ def merge_batches(batch_dir: Path) -> list[dict[str, Any]]:
         all_rows.extend(rows)
 
     return all_rows
+
+
+def merge_batch_directories(batch_dirs: Iterable[Path]) -> list[dict[str, Any]]:
+    """
+    Merge batches from multiple directories.
+
+    Args:
+        batch_dirs: Iterable of directories containing batch_*.json files
+
+    Returns:
+        Combined list of rows from all directories (sorted within each)
+    """
+    merged_rows: list[dict[str, Any]] = []
+
+    for batch_dir in batch_dirs:
+        try:
+            dir_rows = merge_batches(batch_dir)
+        except ValueError as e:
+            print(f"Warning: {e}", file=sys.stderr)
+            continue
+
+        merged_rows.extend(dir_rows)
+
+    if not merged_rows:
+        raise ValueError("No batch files found in any provided directory")
+
+    return merged_rows
 
 
 def clean_rows(rows: list[dict[str, Any]], drop_columns: list[str] | None = None) -> list[dict[str, Any]]:
@@ -112,7 +143,8 @@ def main():
     parser.add_argument(
         "--input", "-i",
         required=True,
-        help="Input directory containing batch files"
+        nargs="+",
+        help="One or more directories containing batch files"
     )
     parser.add_argument(
         "--output", "-o",
@@ -142,18 +174,27 @@ def main():
 
     args = parser.parse_args()
 
-    input_dir = Path(args.input)
+    input_dirs = [Path(p) for p in args.input]
     output_path = Path(args.output)
 
     # Merge batches
-    print(f"Merging batches from {input_dir}...")
+    print(f"Merging batches from: {', '.join(str(p) for p in input_dirs)}...")
     try:
-        rows = merge_batches(input_dir)
+        rows = merge_batch_directories(input_dirs)
     except ValueError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     print(f"Merged {len(rows)} rows")
+
+    # Append existing output if present
+    if output_path.exists():
+        try:
+            existing_rows = load_dataset(output_path)
+            print(f"Found existing output with {len(existing_rows)} rows, appending new rows")
+            rows = existing_rows + rows
+        except (ValueError, ImportError, json.JSONDecodeError, OSError) as e:
+            print(f"Warning: Could not load existing output ({e}); proceeding with new rows only", file=sys.stderr)
 
     # Clean rows
     rows = clean_rows(rows, drop_columns=args.drop)
