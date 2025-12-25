@@ -192,3 +192,16 @@ For large datasets (>50 rows), generate in batches to manage context.
 - For correlated columns, use subcategory or expression types
 - Validate code columns with python validator
 - Keep LLM prompts specific and concise for better quality
+
+## Attribution
+
+This skill is adapted from [NVIDIA NeMo DataDesigner](https://github.com/NVIDIA-NeMo/DataDesigner) (Apache 2.0 License).
+
+Key concepts borrowed:
+- Sampler registry pattern with scipy.stats distributions
+- DAG-based column dependency resolution
+- Jinja2 templating for prompts
+- Python/ruff validation approach
+- Column configuration schema design
+
+Adapted for Claude Code's skill architecture with file-based orchestration instead of external API calls.

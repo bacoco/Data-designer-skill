@@ -226,6 +226,23 @@ See the `examples/` directory:
 - pandas (for Parquet)
 - pyarrow (for Parquet)
 
+## Acknowledgements
+
+This skill is **adapted from [NVIDIA NeMo DataDesigner](https://github.com/NVIDIA-NeMo/DataDesigner)** (Apache 2.0 License).
+
+We studied and borrowed key architectural patterns:
+- **Sampler Registry** - Decorator-based sampler registration with scipy.stats
+- **DAG Dependency Resolution** - Topological sort for column generation order
+- **Jinja2 Templating** - Prompt rendering with dataset variables
+- **Python Validation** - AST parsing + ruff linting approach
+- **Column Config Schema** - Discriminated column types (sampler, llm-text, llm-code, etc.)
+
+The original NVIDIA DataDesigner requires external API keys (OpenAI/NVIDIA NIM). This adaptation removes that requirement by leveraging Claude's native capabilities within Claude Code's skill architecture.
+
 ## License
 
 MIT License
+
+---
+
+*Built with patterns from NVIDIA NeMo DataDesigner. Not affiliated with NVIDIA.*
