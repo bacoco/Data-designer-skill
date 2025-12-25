@@ -70,7 +70,7 @@ def merge_batch_directories(batch_dirs: Iterable[Path]) -> list[dict[str, Any]]:
         try:
             dir_rows = merge_batches(batch_dir)
         except ValueError as e:
-            print(f"Warning: {e}")
+            print(f"Warning: {e}", file=sys.stderr)
             continue
 
         merged_rows.extend(dir_rows)
